@@ -9,6 +9,8 @@ import android.util.Log
 import android.view.MenuItem
 import android.widget.Toast
 import androidx.activity.viewModels
+import androidx.compose.ui.platform.ComposeView
+import com.google.android.material.composethemeadapter.MdcTheme
 import dagger.hilt.android.AndroidEntryPoint
 import io.homeassistant.companion.android.BaseActivity
 import io.homeassistant.companion.android.R
@@ -43,6 +45,14 @@ class NfcSetupActivity : BaseActivity() {
 
         setSupportActionBar(findViewById(R.id.toolbar))
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
+
+        findViewById<ComposeView>(R.id.compose_view).setContent {
+            MdcTheme {
+                NfcWelcomeView(onReadClick = { /*TODO*/ }) {
+                    
+                }
+            }
+        }
 
         mNfcAdapter = NfcAdapter.getDefaultAdapter(this)
 
