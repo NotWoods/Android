@@ -1,10 +1,10 @@
 package io.homeassistant.companion.android.nfc
 
 import android.annotation.SuppressLint
-import android.content.ContentResolver
 import android.content.Intent
 import android.provider.Settings
 import android.util.Log
+import android.widget.Toast
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -12,34 +12,35 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.Button
-import androidx.compose.material.SnackbarDuration
-import androidx.compose.material.SnackbarHostState
 import androidx.compose.material.Text
 import androidx.compose.material.TextField
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.State
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
-import io.homeassistant.companion.android.common.data.integration.IntegrationRepository
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import io.homeassistant.companion.android.common.R as commonR
 
 @Composable
 fun NfcEditView(
-    etTagIdentifier: String,
+    tagIdentifier: String,
     deviceId: String,
-    onDuplicate: (etTagIdentifier: String) -> Unit,
-    onFire: (etTagIdentifier: String) -> Unit,
-    onShare: (etTagExampleTrigger: String) -> Unit
+    onDuplicate: () -> Unit,
+    onFire: () -> Unit,
+    onShare: (shareIntent: Intent) -> Unit
 ) {
-    val etTagExampleTrigger =
-        "- platform: event\n  event_type: tag_scanned\n  event_data:\n    device_id: $deviceId\n    tag_id: $etTagIdentifier"
+    val tagExampleTrigger = """
+        - platform: event
+          event_type: tag_scanned
+          event_data:
+            device_id: $deviceId
+            tag_id: $tagIdentifier
+    """.trimIndent()
 
     val scrollState = rememberScrollState()
     Column(
@@ -47,7 +48,7 @@ fun NfcEditView(
     ) {
         TextField(
             label = { Text(text = stringResource(commonR.string.nfc_tag_identifier)) },
-            value = etTagIdentifier,
+            value = tagIdentifier,
             readOnly = true,
             onValueChange = {}
         )
@@ -57,7 +58,7 @@ fun NfcEditView(
                 modifier = Modifier
                     .weight(1f)
                     .padding(end = 8.dp),
-                onClick = { onDuplicate(etTagIdentifier) }
+                onClick = onDuplicate
             ) {
                 Text(text = stringResource(commonR.string.nfc_btn_create_duplicate))
             }
@@ -65,7 +66,7 @@ fun NfcEditView(
                 modifier = Modifier
                     .weight(1f)
                     .padding(start = 8.dp),
-                onClick = { onFire(etTagIdentifier) }
+                onClick = onFire
             ) {
                 Text(text = stringResource(commonR.string.nfc_btn_fire_event))
             }
@@ -74,14 +75,21 @@ fun NfcEditView(
         TextField(
             modifier = Modifier.padding(top = 48.dp),
             label = { Text(text = stringResource(commonR.string.nfc_example_trigger)) },
-            value = etTagIdentifier,
+            value = tagExampleTrigger,
             readOnly = true,
             onValueChange = {}
         )
 
         Button(
             modifier = Modifier.fillMaxWidth(),
-            onClick = { onShare(etTagExampleTrigger) }
+            onClick = {
+                val sendIntent: Intent = Intent(Intent.ACTION_SEND).apply {
+                    type = "text/plain"
+                    putExtra(Intent.EXTRA_TEXT, tagExampleTrigger)
+                }
+                val shareIntent = Intent.createChooser(sendIntent, null)
+                onShare(shareIntent)
+            }
         ) {
             Text(text = stringResource(commonR.string.nfc_btn_share))
         }
@@ -92,59 +100,61 @@ fun NfcEditView(
 @Preview
 private fun PreviewNfcEdit() {
     NfcEditView(
-        etTagIdentifier = "",
-        deviceId = "",
+        tagIdentifier = "123456-789",
+        deviceId = "ABCD-EFG",
         onDuplicate = {},
         onFire = {},
         onShare = {}
     )
 }
 
-private const val TAG = "NfcEdit"
-
+/**
+ * Retrieves the hardware device ID using the current context.
+ */
 @SuppressLint("HardwareIds")
 @Composable
+fun androidId(): String {
+    val contentResolver = LocalContext.current.contentResolver
+    return remember(contentResolver) {
+        Settings.Secure.getString(contentResolver, Settings.Secure.ANDROID_ID)
+    }
+}
+
+private const val TAG = "NfcEdit"
+
+@Composable
 fun NfcEditEntryView(
-    etTagIdentifier: State<String>,
-    mainScope: CoroutineScope,
-    snackbarHostState: SnackbarHostState,
-    integrationUseCase: IntegrationRepository,
-    onDuplicate: (etTagIdentifier: String) -> Unit,
+    viewModel: NfcViewModel,
+    tagIdentifier: String,
+    onDuplicate: () -> Unit,
 ) {
     val context = LocalContext.current
-    val deviceId = remember(context.contentResolver) {
-        Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID)
-    }
+    val composableScope = rememberCoroutineScope()
 
     NfcEditView(
-        etTagIdentifier = etTagIdentifier.value,
-        deviceId = deviceId,
+        tagIdentifier = tagIdentifier,
+        deviceId = androidId(),
         onDuplicate = onDuplicate,
-        onFire = { uuid ->
-            mainScope.launch {
+        onFire = {
+            composableScope.launch {
                 try {
-                    integrationUseCase.scanTag(
-                        hashMapOf("tag_id" to uuid)
-                    )
-                    snackbarHostState.showSnackbar(
-                        message = context.getString(commonR.string.nfc_event_fired_success),
-                        duration = SnackbarDuration.Short
-                    )
+                    viewModel.scanTag(tagIdentifier)
+                    Toast.makeText(
+                        context,
+                        commonR.string.nfc_event_fired_success,
+                        Toast.LENGTH_SHORT
+                    ).show()
                 } catch (e: Exception) {
-                    snackbarHostState.showSnackbar(
-                        message = context.getString(commonR.string.nfc_event_fired_fail),
-                        duration = SnackbarDuration.Long
-                    )
+                    Toast.makeText(
+                        context,
+                        commonR.string.nfc_event_fired_fail,
+                        Toast.LENGTH_LONG
+                    ).show()
                     Log.e(TAG, "Unable to send tag to Home Assistant.", e)
                 }
             }
         },
-        onShare = { etTagExampleTrigger ->
-            val sendIntent: Intent = Intent(Intent.ACTION_SEND).apply {
-                type = "text/plain"
-                putExtra(Intent.EXTRA_TEXT, etTagExampleTrigger)
-            }
-            val shareIntent = Intent.createChooser(sendIntent, null)
+        onShare = { shareIntent ->
             ContextCompat.startActivity(context, shareIntent, null)
         }
     )

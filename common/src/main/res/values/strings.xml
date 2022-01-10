@@ -635,6 +635,7 @@
     <string name="unable_to_register">Unable to Register Application</string>
     <string name="unique_id">Unique Id</string>
     <string name="unknown_address">Unknown address</string>
+    <string name="up">Up</string>
     <string name="update_pinned_shortcut">Update Pinned Shortcut Data</string>
     <string name="update_shortcut">Update Shortcut Data</string>
     <string name="update_widget">Update Widget</string>

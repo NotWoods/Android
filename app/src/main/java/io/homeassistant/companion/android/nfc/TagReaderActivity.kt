@@ -1,11 +1,14 @@
 package io.homeassistant.companion.android.nfc
 
 import android.content.Intent
+import android.net.Uri
 import android.nfc.NdefMessage
 import android.nfc.NfcAdapter
 import android.os.Bundle
 import android.util.Log
 import android.widget.Toast
+import androidx.lifecycle.lifecycleScope
+import com.mikepenz.iconics.typeface.library.community.material.CommunityMaterial.url
 import dagger.hilt.android.AndroidEntryPoint
 import io.homeassistant.companion.android.BaseActivity
 import io.homeassistant.companion.android.R
@@ -24,8 +27,6 @@ class TagReaderActivity : BaseActivity() {
 
     val TAG = TagReaderActivity::class.simpleName
 
-    private val mainScope: CoroutineScope = CoroutineScope(Dispatchers.Main + Job())
-
     @Inject
     lateinit var integrationUseCase: IntegrationRepository
 
@@ -35,26 +36,30 @@ class TagReaderActivity : BaseActivity() {
 
         setSupportActionBar(findViewById(R.id.toolbar))
 
-        mainScope.launch {
+        lifecycleScope.launch {
             if (NfcAdapter.ACTION_NDEF_DISCOVERED == intent.action) {
-                val rawMessages = intent.getParcelableArrayExtra(NfcAdapter.EXTRA_NDEF_MESSAGES)
-                val ndefMessage = rawMessages?.get(0) as NdefMessage?
-                val url = ndefMessage?.records?.get(0)?.toUri().toString()
+                val url = NFCUtil.extractNFCTagUrl(intent)
                 try {
                     handleTag(url)
                 } catch (e: Exception) {
-                    val message = commonR.string.nfc_processing_tag_error
-                    Toast.makeText(this@TagReaderActivity, message, Toast.LENGTH_LONG).show()
+                    Toast.makeText(
+                        applicationContext,
+                        commonR.string.nfc_processing_tag_error,
+                        Toast.LENGTH_LONG
+                    ).show()
                     Log.e(TAG, "Unable to handle url (nfc): $url", e)
                     finish()
                 }
             } else if (Intent.ACTION_VIEW == intent.action) {
-                val url: String = intent?.data.toString()
+                val url: Uri? = intent?.data
                 try {
                     handleTag(url)
                 } catch (e: Exception) {
-                    val message = commonR.string.qrcode_processing_tag_error
-                    Toast.makeText(this@TagReaderActivity, message, Toast.LENGTH_LONG).show()
+                    Toast.makeText(
+                        applicationContext,
+                        commonR.string.qrcode_processing_tag_error,
+                        Toast.LENGTH_LONG
+                    ).show()
                     Log.e(TAG, "Unable to handle url (qrcode): $url", e)
                     finish()
                 }
@@ -62,12 +67,7 @@ class TagReaderActivity : BaseActivity() {
         }
     }
 
-    override fun onDestroy() {
-        mainScope.cancel()
-        super.onDestroy()
-    }
-
-    private suspend fun handleTag(url: String) {
+    private suspend fun handleTag(url: Uri?) {
         // https://www.home-assistant.io/tag/5f0ba733-172f-430d-a7f8-e4ad940c88d7
 
         val nfcTagId = UrlHandler.splitNfcTagId(url)
@@ -76,7 +76,11 @@ class TagReaderActivity : BaseActivity() {
             integrationUseCase.scanTag(hashMapOf("tag_id" to nfcTagId))
             Log.d(TAG, "Tag scanned to HA successfully")
         } else {
-            Toast.makeText(this, commonR.string.nfc_processing_tag_error, Toast.LENGTH_LONG).show()
+            Toast.makeText(
+                applicationContext,
+                commonR.string.nfc_processing_tag_error,
+                Toast.LENGTH_LONG
+            ).show()
         }
         finish()
     }

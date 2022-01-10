@@ -1,65 +1,109 @@
 package io.homeassistant.companion.android.nfc
 
-import android.content.Intent
-import android.provider.Settings
-import android.util.Log
-import android.widget.Toast
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material.Icon
+import androidx.compose.material.IconButton
 import androidx.compose.material.Scaffold
+import androidx.compose.material.Text
+import androidx.compose.material.TopAppBar
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
-import androidx.core.content.ContextCompat.startActivity
+import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.res.stringResource
+import androidx.lifecycle.flowWithLifecycle
+import androidx.navigation.NavHostController
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
-import androidx.navigation.compose.rememberNavController
-import androidx.navigation.fragment.findNavController
-import io.homeassistant.companion.android.R
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.launch
-
-enum class NfcScreen { Welcome, Write, Read, Edit }
+import androidx.navigation.navArgument
+import kotlinx.coroutines.flow.collectLatest
+import java.util.*
+import io.homeassistant.companion.android.common.R as commonR
 
 @Composable
 fun NfcSetupView(
-    viewModel: NfcViewModel
+    navController: NavHostController,
+    viewModel: NfcViewModel,
+    startDestination: String = "welcome",
+    onUpNavigation: () -> Unit,
 ) {
-    val navController = rememberNavController()
-    val etTagIdentifier = viewModel.nfcReadEvent.observeAsState()
-    val scope = rememberCoroutineScope { Dispatchers.Main + Job() }
+    val lifecycleOwner = LocalLifecycleOwner.current
+    LaunchedEffect(lifecycleOwner) {
+        viewModel.nfcEvents.flowWithLifecycle(lifecycleOwner.lifecycle).collectLatest { event ->
+            when (event) {
+                is NfcUiEvent.TagRead -> {
+                    navController.navigate("edit/${event.tagIdentifier}")
+                }
+                is NfcUiEvent.TagWritten -> {
+                    navController.navigate("edit/${event.tagIdentifier}")
+                }
+            }
+        }
+    }
 
-    Scaffold { innerPadding ->
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = {
+                    Text(text = stringResource(commonR.string.nfc_title_nfc_setup))
+                },
+                navigationIcon = {
+                    IconButton(onClick = onUpNavigation) {
+                        Icon(
+                            Icons.Filled.ArrowBack,
+                            contentDescription = stringResource(commonR.string.up)
+                        )
+                    }
+                }
+            )
+        }
+    ) { innerPadding ->
         NavHost(
             navController = navController,
-            startDestination = NfcScreen.Welcome.name,
+            startDestination = startDestination,
             modifier = Modifier.padding(innerPadding)
         ) {
-            composable(NfcScreen.Welcome.name) {
+            composable("welcome") {
                 NfcWelcomeView(
-                    onReadClick = { navController.navigate(NfcScreen.Read.name) },
-                    onWriteClick = { viewModel.postNewUUID() }
+                    onReadClick = { navController.navigate("read") },
+                    onWriteClick = {
+                        val uuid = UUID.randomUUID().toString()
+                        navController.navigate("write/$uuid")
+                    }
                 )
             }
-            composable(NfcScreen.Write.name) {
-                NfcWriteView(
-                    tagIdentifier = viewModel.nfcWriteTagEvent.observeAsState().value
+            composable(
+                "write/{uuid}",
+                arguments = listOf(navArgument("uuid") { type = NavType.StringType })
+            ) { backStackEntry ->
+                val tagIdentifier = backStackEntry.arguments?.getString("uuid")
+                NfcWriteEntryView(
+                    viewModel = viewModel,
+                    tagIdentifier = tagIdentifier.orEmpty()
                 )
             }
-            composable(NfcScreen.Read.name) {
+            composable("read") {
                 NfcReadView()
             }
-            composable(NfcScreen.Edit.name) {
+            composable(
+                "edit/{uuid}",
+                arguments = listOf(navArgument("uuid") { type = NavType.StringType })
+            ) { backStackEntry ->
+                val tagIdentifier = backStackEntry.arguments?.getString("uuid")
                 NfcEditEntryView(
-                    etTagIdentifier = etTagIdentifier,
-                    mainScope = scope,
-                    snackbarHostState = {},
-                    onDuplicate = { uuid ->
-                        viewModel.nfcWriteTagEvent.postValue(uuid)
-                        navController.navigate(R.id.action_NFC_WRITE)
+                    viewModel = viewModel,
+                    tagIdentifier = tagIdentifier!!,
+                    onDuplicate = {
+                        viewModel.nfcTagIdToWrite.value = tagIdentifier
+                        navController.navigate("write/$tagIdentifier")
                     }
                 )
             }
         }
     }
 }
+
+

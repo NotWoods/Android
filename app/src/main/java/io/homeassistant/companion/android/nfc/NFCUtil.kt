@@ -4,18 +4,44 @@ import android.app.Activity
 import android.app.PendingIntent
 import android.content.Intent
 import android.content.IntentFilter
+import android.net.Uri
 import android.nfc.NdefMessage
 import android.nfc.NdefRecord
 import android.nfc.NfcAdapter
 import android.nfc.Tag
 import android.nfc.tech.Ndef
 import android.nfc.tech.NdefFormatable
+import androidx.core.net.toUri
+import com.mikepenz.iconics.typeface.library.community.material.CommunityMaterial.url
 import io.homeassistant.companion.android.BuildConfig
+import io.homeassistant.companion.android.util.UrlHandler
 import java.io.IOException
 
 object NFCUtil {
+    /**
+     * Gets the URL stored in a NFC tag read in a `ACTION_NDEF_DISCOVERED` intent.
+     */
+    fun extractNFCTagUrl(intent: Intent): Uri? {
+        if (intent.action != NfcAdapter.ACTION_NDEF_DISCOVERED) {
+            return null
+        }
+
+        val rawMessages = intent.getParcelableArrayExtra(NfcAdapter.EXTRA_NDEF_MESSAGES)
+        val ndefMessage = rawMessages?.get(0) as NdefMessage?
+        return ndefMessage?.records?.get(0)?.toUri()
+    }
+
+    /**
+     * Extracts the NFC tag ID from a Home Assistant tag URL.
+     */
+    fun splitNfcTagId(url: Uri?): String? {
+        val matches = "^https?://www\\.home-assistant\\.io/tag/(.*)".toRegex().find(url.toString())
+        return matches?.groups?.get(1)?.value
+    }
+
     @Throws(Exception::class)
-    fun createNFCMessage(url: String, intent: Intent?): Boolean {
+    fun createNFCMessage(nfcTagId: String, intent: Intent?): Boolean {
+        val url = "https://www.home-assistant.io/tag/$nfcTagId".toUri()
         val nfcRecord = NdefRecord.createUri(url)
         val applicationRecords = BuildConfig.APPLICATION_IDS.map {
             NdefRecord.createApplicationRecord(it)

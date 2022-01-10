@@ -26,43 +26,68 @@
     <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION" />
     <uses-permission android:name="com.google.android.gms.permission.ACTIVITY_RECOGNITION" />
     <uses-permission android:name="android.permission.ACCESS_NOTIFICATION_POLICY" />
-    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES"
+    <uses-permission
+        android:name="android.permission.QUERY_ALL_PACKAGES"
         tools:ignore="QueryAllPackagesPermission" />
     <uses-permission android:name="com.android.alarm.permission.SET_ALARM" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
-    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW"/>
-    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
-    <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS"
+    <uses-permission
+        android:name="android.permission.PACKAGE_USAGE_STATS"
         tools:ignore="ProtectedPermissions" />
 
-    <uses-feature android:name="android.hardware.touchscreen" android:required="false"/>
-    <uses-feature android:name="android.hardware.telephony" android:required="false"/>
-    <uses-feature android:name="android.hardware.camera" android:required="false"/>
-    <uses-feature android:name="android.hardware.nfc" android:required="false"/>
-    <uses-feature android:name="android.hardware.location.gps" android:required="false"/>
-    <uses-feature android:name="android.hardware.sensor" android:required="false"/>
-    <uses-feature android:name="android.hardware.microphone" android:required="false" />
-    <uses-feature android:name="android.software.leanback" android:required="false" />
-    <uses-feature android:name="android.hardware.bluetooth" android:required="false" />
+    <uses-feature
+        android:name="android.hardware.touchscreen"
+        android:required="false" />
+    <uses-feature
+        android:name="android.hardware.telephony"
+        android:required="false" />
+    <uses-feature
+        android:name="android.hardware.camera"
+        android:required="false" />
+    <uses-feature
+        android:name="android.hardware.nfc"
+        android:required="false" />
+    <uses-feature
+        android:name="android.hardware.location.gps"
+        android:required="false" />
+    <uses-feature
+        android:name="android.hardware.sensor"
+        android:required="false" />
+    <uses-feature
+        android:name="android.hardware.microphone"
+        android:required="false" />
+    <uses-feature
+        android:name="android.software.leanback"
+        android:required="false" />
+    <uses-feature
+        android:name="android.hardware.bluetooth"
+        android:required="false" />
 
     <application
         android:name=".HomeAssistantApplication"
         android:allowBackup="true"
-        android:fullBackupContent="@xml/backup_rules"
-        android:dataExtractionRules="@xml/backup_rules_android12"
-        android:icon="@mipmap/ic_launcher"
         android:banner="@mipmap/ic_banner"
+        android:dataExtractionRules="@xml/backup_rules_android12"
+        android:fullBackupContent="@xml/backup_rules"
+        android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
+        android:networkSecurityConfig="@xml/network_security_config"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.HomeAssistant"
-        android:networkSecurityConfig="@xml/network_security_config"
         tools:ignore="GoogleAppIndexingWarning">
-
+        <activity
+            android:name=".nfc.NfcSetupActivity"
+            android:exported="false"
+            android:label="@string/title_activity_nfc_setup2"
+            android:theme="@style/Theme.HomeAssistant" />
         <!-- Start things like SensorWorker on device boot -->
-        <receiver android:name=".sensors.SensorReceiver"
+        <receiver
+            android:name=".sensors.SensorReceiver"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
@@ -76,9 +101,10 @@
                 <action android:name="android.bluetooth.device.action.ACL_DISCONNECTED" />
             </intent-filter>
         </receiver>
-
-        <receiver android:name=".widgets.button.ButtonWidget" android:label="@string/widget_button_image_description"
-            android:exported="false">
+        <receiver
+            android:name=".widgets.button.ButtonWidget"
+            android:exported="false"
+            android:label="@string/widget_button_image_description">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
                 <action android:name="io.homeassistant.companion.android.widgets.ButtonWidget.CALL_SERVICE" />
@@ -89,9 +115,10 @@
                 android:name="android.appwidget.provider"
                 android:resource="@xml/button_widget_info" />
         </receiver>
-
-        <receiver android:name=".widgets.camera.CameraWidget" android:label="@string/widget_camera_description"
-            android:exported="false">
+        <receiver
+            android:name=".widgets.camera.CameraWidget"
+            android:exported="false"
+            android:label="@string/widget_camera_description">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
                 <action android:name="io.homeassistant.companion.android.widgets.camera.CameraWidget.RECEIVE_DATA" />
@@ -102,9 +129,10 @@
                 android:name="android.appwidget.provider"
                 android:resource="@xml/camera_widget_info" />
         </receiver>
-
-        <receiver android:name=".widgets.entity.EntityWidget" android:label="@string/widget_static_image_description"
-            android:exported="false">
+        <receiver
+            android:name=".widgets.entity.EntityWidget"
+            android:exported="false"
+            android:label="@string/widget_static_image_description">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
                 <action android:name="io.homeassistant.companion.android.widgets.StaticWidget.RECEIVE_DATA" />
@@ -114,9 +142,10 @@
                 android:name="android.appwidget.provider"
                 android:resource="@xml/entity_widget_info" />
         </receiver>
-
-        <receiver android:name=".widgets.media_player_controls.MediaPlayerControlsWidget" android:label="@string/widget_media_player_description"
-            android:exported="false">
+        <receiver
+            android:name=".widgets.media_player_controls.MediaPlayerControlsWidget"
+            android:exported="false"
+            android:label="@string/widget_media_player_description">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
                 <action android:name="io.homeassistant.companion.android.widgets.media_player_controls.MediaPlayerControlsWidget.RECEIVE_DATA" />
@@ -132,9 +161,10 @@
                 android:name="android.appwidget.provider"
                 android:resource="@xml/media_player_control_widget_info" />
         </receiver>
-
-        <receiver android:name=".widgets.template.TemplateWidget" android:label="@string/template_widget"
-            android:exported="true">
+        <receiver
+            android:name=".widgets.template.TemplateWidget"
+            android:exported="true"
+            android:label="@string/template_widget">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
                 <action android:name="android.intent.action.QUICKBOOT_POWERON" />
@@ -152,50 +182,56 @@
                 android:resource="@xml/template_widget_info" />
         </receiver>
 
-        <activity android:name=".widgets.button.ButtonWidgetConfigureActivity"
+        <activity
+            android:name=".widgets.button.ButtonWidgetConfigureActivity"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_CONFIGURE" />
             </intent-filter>
         </activity>
-        <activity android:name=".widgets.camera.CameraWidgetConfigureActivity"
+        <activity
+            android:name=".widgets.camera.CameraWidgetConfigureActivity"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_CONFIGURE" />
             </intent-filter>
         </activity>
-        <activity android:name=".widgets.entity.EntityWidgetConfigureActivity"
+        <activity
+            android:name=".widgets.entity.EntityWidgetConfigureActivity"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_CONFIGURE" />
             </intent-filter>
         </activity>
-        <activity android:name=".widgets.media_player_controls.MediaPlayerControlsWidgetConfigureActivity"
+        <activity
+            android:name=".widgets.media_player_controls.MediaPlayerControlsWidgetConfigureActivity"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_CONFIGURE" />
             </intent-filter>
         </activity>
-        <activity android:name=".widgets.template.TemplateWidgetConfigureActivity"
+        <activity
+            android:name=".widgets.template.TemplateWidgetConfigureActivity"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_CONFIGURE" />
             </intent-filter>
         </activity>
 
-        <service android:name=".sensors.NotificationSensorManager"
-            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE"
-            android:exported="true">
+        <service
+            android:name=".sensors.NotificationSensorManager"
+            android:exported="true"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
             <intent-filter>
-                <action android:name="android.service.notification.NotificationListenerService"/>
+                <action android:name="android.service.notification.NotificationListenerService" />
             </intent-filter>
         </service>
-
-        <service android:name=".controls.HaControlsProviderService"
-            android:permission="android.permission.BIND_CONTROLS"
-            android:exported="true">
+        <service
+            android:name=".controls.HaControlsProviderService"
+            android:exported="true"
+            android:permission="android.permission.BIND_CONTROLS">
             <intent-filter>
-                <action android:name="android.service.controls.ControlsProviderService"/>
+                <action android:name="android.service.controls.ControlsProviderService" />
             </intent-filter>
         </service>
 
@@ -207,7 +243,6 @@
                 <action android:name="io.homeassistant.companion.android.background.REQUEST_ACCURATE_UPDATE" />
             </intent-filter>
         </receiver>
-
         <receiver
             android:name=".sensors.ActivitySensorManager"
             android:enabled="true"
@@ -217,116 +252,124 @@
             </intent-filter>
         </receiver>
 
-        <activity android:name=".launch.LaunchActivity"
+        <activity
+            android:name=".launch.LaunchActivity"
             android:exported="true"
             android:theme="@style/Theme.LaunchScreen">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
+
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
+
                 <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
             </intent-filter>
-
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
+
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
 
                 <data
-                    android:scheme="homeassistant"
-                    android:host="navigate" />
+                    android:host="navigate"
+                    android:scheme="homeassistant" />
             </intent-filter>
         </activity>
-
-        <activity android:name=".launch.my.MyActivity"
+        <activity
+            android:name=".launch.my.MyActivity"
             android:exported="true">
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
+
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
 
                 <data
-                    android:scheme="https"
                     android:host="my.home-assistant.io"
-                    android:pathPrefix="/redirect/"/>
+                    android:pathPrefix="/redirect/"
+                    android:scheme="https" />
             </intent-filter>
         </activity>
-
         <activity
             android:name=".onboarding.OnboardingActivity"
             android:configChanges="orientation|screenSize|keyboardHidden" />
-
         <activity
             android:name=".settings.wear.SettingsWearActivity"
-            android:parentActivityName=".settings.SettingsActivity"
-            android:configChanges="orientation|screenSize" />
-
+            android:configChanges="orientation|screenSize"
+            android:parentActivityName=".settings.SettingsActivity" />
         <activity
             android:name=".settings.wear.views.SettingsWearMainView"
-            android:parentActivityName=".settings.SettingsActivity"
-            android:configChanges="orientation|screenSize" />
+            android:configChanges="orientation|screenSize"
+            android:parentActivityName=".settings.SettingsActivity" />
 
-        <service android:name=".onboarding.WearOnboardingListener"
+        <service
+            android:name=".onboarding.WearOnboardingListener"
             android:exported="true">
             <intent-filter>
                 <action android:name="com.google.android.gms.wearable.MESSAGE_RECEIVED" />
                 <action android:name="com.google.android.gms.wearable.DATA_CHANGED" />
-                <data android:scheme="wear" android:host="*"
-                    android:path="/request_home_assistant_instance" />
+
+                <data
+                    android:host="*"
+                    android:path="/request_home_assistant_instance"
+                    android:scheme="wear" />
             </intent-filter>
         </service>
-        
+
         <activity
             android:name=".webview.WebViewActivity"
-            android:supportsPictureInPicture="true"
-            android:resizeableActivity="true"
+            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout"
             android:exported="false"
-            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout" />
-
+            android:resizeableActivity="true"
+            android:supportsPictureInPicture="true" />
         <activity
             android:name=".settings.SettingsActivity"
-            android:parentActivityName=".webview.WebViewActivity"
+            android:configChanges="orientation|screenSize"
             android:exported="false"
-            android:configChanges="orientation|screenSize"/>
-
+            android:parentActivityName=".webview.WebViewActivity" />
         <activity
             android:name=".nfc.TagReaderActivity"
-            android:label="@string/tag_reader_title"
-            android:exported="true">
+            android:exported="true"
+            android:label="@string/tag_reader_title">
             <tools:validation testUrl="https://www.home-assistant.io/tag/123e4567-e89b-12d3-a456-426614174000" />
 
             <intent-filter>
                 <action android:name="android.nfc.action.NDEF_DISCOVERED" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
-                <data
-                    android:scheme="https"
-                    android:host="www.home-assistant.io"
-                    android:pathPrefix="/tag/" />
-            </intent-filter>
-            <intent-filter android:autoVerify="true">
-                <action android:name="android.intent.action.VIEW" />
+
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
 
                 <data
-                    android:scheme="https"
                     android:host="www.home-assistant.io"
-                    android:pathPrefix="/tag/" />
+                    android:pathPrefix="/tag/"
+                    android:scheme="https" />
+            </intent-filter>
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data
+                    android:host="www.home-assistant.io"
+                    android:pathPrefix="/tag/"
+                    android:scheme="https" />
             </intent-filter>
         </activity>
         <activity
             android:name=".nfc.NfcSetupActivity"
             android:exported="false"
             android:label="@string/nfc_title_nfc_setup" />
-
-        <activity android:name=".share.ShareActivity"
+        <activity
+            android:name=".share.ShareActivity"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.SEND" />
+
                 <category android:name="android.intent.category.DEFAULT" />
+
                 <data android:mimeType="text/*" />
             </intent-filter>
         </activity>
@@ -338,150 +381,127 @@
             android:grantUriPermissions="true">
             <meta-data
                 android:name="android.support.FILE_PROVIDER_PATHS"
-                android:resource="@xml/provider_paths"/>
+                android:resource="@xml/provider_paths" />
         </provider>
 
         <service
             android:name=".qs.Tile1Service"
+            android:exported="true"
             android:icon="@drawable/ic_stat_ic_notification"
             android:label="@string/tile_not_setup"
-            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE"
-            android:exported="true">
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
             <intent-filter>
-                <action
-                    android:name="android.service.quicksettings.action.QS_TILE"/>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
             </intent-filter>
         </service>
-
         <service
             android:name=".qs.Tile2Service"
+            android:exported="true"
             android:icon="@drawable/ic_stat_ic_notification"
             android:label="@string/tile_not_setup"
-            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE"
-            android:exported="true">
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
             <intent-filter>
-                <action
-                    android:name="android.service.quicksettings.action.QS_TILE"/>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
             </intent-filter>
         </service>
-
         <service
             android:name=".qs.Tile3Service"
+            android:exported="true"
             android:icon="@drawable/ic_stat_ic_notification"
             android:label="@string/tile_not_setup"
-            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE"
-            android:exported="true">
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
             <intent-filter>
-                <action
-                    android:name="android.service.quicksettings.action.QS_TILE"/>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
             </intent-filter>
         </service>
-
         <service
             android:name=".qs.Tile4Service"
+            android:exported="true"
             android:icon="@drawable/ic_stat_ic_notification"
             android:label="@string/tile_not_setup"
-            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE"
-            android:exported="true">
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
             <intent-filter>
-                <action
-                    android:name="android.service.quicksettings.action.QS_TILE"/>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
             </intent-filter>
         </service>
-
         <service
             android:name=".qs.Tile5Service"
+            android:exported="true"
             android:icon="@drawable/ic_stat_ic_notification"
             android:label="@string/tile_not_setup"
-            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE"
-            android:exported="true">
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
             <intent-filter>
-                <action
-                    android:name="android.service.quicksettings.action.QS_TILE"/>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
             </intent-filter>
         </service>
-
         <service
             android:name=".qs.Tile6Service"
+            android:exported="true"
             android:icon="@drawable/ic_stat_ic_notification"
             android:label="@string/tile_not_setup"
-            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE"
-            android:exported="true">
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
             <intent-filter>
-                <action
-                    android:name="android.service.quicksettings.action.QS_TILE"/>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
             </intent-filter>
         </service>
-
         <service
             android:name=".qs.Tile7Service"
+            android:exported="true"
             android:icon="@drawable/ic_stat_ic_notification"
             android:label="@string/tile_not_setup"
-            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE"
-            android:exported="true">
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
             <intent-filter>
-                <action
-                    android:name="android.service.quicksettings.action.QS_TILE"/>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
             </intent-filter>
         </service>
-
         <service
             android:name=".qs.Tile8Service"
+            android:exported="true"
             android:icon="@drawable/ic_stat_ic_notification"
             android:label="@string/tile_not_setup"
-            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE"
-            android:exported="true">
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
             <intent-filter>
-                <action
-                    android:name="android.service.quicksettings.action.QS_TILE"/>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
             </intent-filter>
         </service>
-
         <service
             android:name=".qs.Tile9Service"
+            android:exported="true"
             android:icon="@drawable/ic_stat_ic_notification"
             android:label="@string/tile_not_setup"
-            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE"
-            android:exported="true">
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
             <intent-filter>
-                <action
-                    android:name="android.service.quicksettings.action.QS_TILE"/>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
             </intent-filter>
         </service>
-
         <service
             android:name=".qs.Tile10Service"
+            android:exported="true"
             android:icon="@drawable/ic_stat_ic_notification"
             android:label="@string/tile_not_setup"
-            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE"
-            android:exported="true">
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
             <intent-filter>
-                <action
-                    android:name="android.service.quicksettings.action.QS_TILE"/>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
             </intent-filter>
         </service>
-
         <service
             android:name=".qs.Tile11Service"
+            android:exported="true"
             android:icon="@drawable/ic_stat_ic_notification"
             android:label="@string/tile_not_setup"
-            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE"
-            android:exported="true">
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
             <intent-filter>
-                <action
-                    android:name="android.service.quicksettings.action.QS_TILE"/>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
             </intent-filter>
         </service>
-
         <service
             android:name=".qs.Tile12Service"
+            android:exported="true"
             android:icon="@drawable/ic_stat_ic_notification"
             android:label="@string/tile_not_setup"
-            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE"
-            android:exported="true">
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
             <intent-filter>
-                <action
-                    android:name="android.service.quicksettings.action.QS_TILE"/>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
             </intent-filter>
         </service>
     </application>

@@ -19,12 +19,16 @@ android {
     ndkVersion = "21.3.6528147"
 
     defaultConfig {
+        manifestPlaceholders += mapOf()
         applicationId = "io.homeassistant.companion.android"
         minSdk = 21
         targetSdk = 31
 
         versionName = System.getenv("VERSION") ?: "LOCAL"
         versionCode = System.getenv("VERSION_CODE")?.toIntOrNull() ?: 1
+        vectorDrawables {
+            useSupportLibrary = true
+        }
 
         manifestPlaceholders["sentryRelease"] = "$applicationId@$versionName"
     }
@@ -45,6 +49,8 @@ android {
     compileOptions {
         sourceCompatibility(JavaVersion.VERSION_11)
         targetCompatibility(JavaVersion.VERSION_11)
+        sourceCompatibility = JavaVersion.VERSION_1_8
+        targetCompatibility = JavaVersion.VERSION_1_8
     }
 
     firebaseAppDistribution {
@@ -121,6 +127,11 @@ android {
         isAbortOnError = false
         disable("MissingTranslation")
     }
+    packagingOptions {
+        resources {
+            excludes += "/META-INF/{AL2.0,LGPL2.1}"
+        }
+    }
 
     kapt {
         correctErrorTypes = true
@@ -152,6 +163,9 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.6.0")
 
     implementation("com.google.dagger:hilt-android:2.40.5")
+    implementation("androidx.compose.ui:ui-tooling-preview:${rootProject.extra["compose_version"]}")
+    androidTestImplementation("androidx.compose.ui:ui-test-junit4:${rootProject.extra["compose_version"]}")
+    debugImplementation("androidx.compose.ui:ui-test-manifest:${rootProject.extra["compose_version"]}")
     kapt("com.google.dagger:hilt-android-compiler:2.40.5")
 
     implementation("androidx.appcompat:appcompat:1.4.0")

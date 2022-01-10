@@ -1,5 +1,9 @@
 package io.homeassistant.companion.android.util
 
+import android.content.Intent
+import android.net.Uri
+import android.nfc.NdefMessage
+import android.nfc.NfcAdapter
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import java.net.URL
 
@@ -22,11 +26,22 @@ object UrlHandler {
         return Regex("^https?://").containsMatchIn(it.toString())
     }
 
-    fun splitNfcTagId(it: String?): String? {
+    fun splitNfcTagId(url: Uri?): String? {
         val matches =
             Regex("^https?://www\\.home-assistant\\.io/tag/(.*)").find(
-                it.toString()
+                url.toString()
             )
         return matches?.groups?.get(1)?.value
+    }
+
+    fun extractNfcTagId(intent: Intent): String? {
+        if (intent.action != NfcAdapter.ACTION_NDEF_DISCOVERED) {
+            return null
+        }
+
+        val rawMessages = intent.getParcelableArrayExtra(NfcAdapter.EXTRA_NDEF_MESSAGES)
+        val ndefMessage = rawMessages?.get(0) as NdefMessage?
+        val url = ndefMessage?.records?.get(0)?.toUri()
+        return splitNfcTagId(url)
     }
 }

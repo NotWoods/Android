@@ -3,9 +3,11 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 plugins {
     id("org.jlleitschuh.gradle.ktlint") version "10.2.1"
     id("com.github.ben-manes.versions") version "0.41.0"
+    id("org.jetbrains.kotlin.android") version "1.5.31" apply false
 }
 
 buildscript {
+    val compose_version by extra("1.1.0-beta01")
     repositories {
         google()
         gradlePluginPortal()

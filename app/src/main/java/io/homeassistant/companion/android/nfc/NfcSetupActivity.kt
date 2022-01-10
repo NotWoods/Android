@@ -2,28 +2,24 @@ package io.homeassistant.companion.android.nfc
 
 import android.content.Context
 import android.content.Intent
-import android.nfc.NdefMessage
 import android.nfc.NfcAdapter
 import android.os.Bundle
 import android.util.Log
-import android.view.MenuItem
 import android.widget.Toast
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
 import androidx.activity.viewModels
-import androidx.compose.ui.platform.ComposeView
+import androidx.navigation.NavHostController
+import androidx.navigation.compose.rememberNavController
 import com.google.android.material.composethemeadapter.MdcTheme
 import dagger.hilt.android.AndroidEntryPoint
-import io.homeassistant.companion.android.BaseActivity
-import io.homeassistant.companion.android.R
-import io.homeassistant.companion.android.util.UrlHandler
-import io.homeassistant.companion.android.common.R as commonR
+import io.homeassistant.companion.android.common.R
 
 @AndroidEntryPoint
-class NfcSetupActivity : BaseActivity() {
+class NfcSetupActivity : ComponentActivity() {
 
-    private val viewModel: NfcViewModel by viewModels()
-    private var mNfcAdapter: NfcAdapter? = null
-    private var simpleWrite = false
-    private var messageId: Int = -1
+    private val viewModel by viewModels<NfcViewModel>()
+    private var nfcAdapter: NfcAdapter? = null
 
     companion object {
         val TAG = NfcSetupActivity::class.simpleName
@@ -33,102 +29,122 @@ class NfcSetupActivity : BaseActivity() {
         fun newInstance(context: Context, tagId: String? = null, messageId: Int = -1): Intent {
             return Intent(context, NfcSetupActivity::class.java).apply {
                 putExtra(EXTRA_MESSAGE_ID, messageId)
-                if (tagId != null)
+                if (tagId != null) {
                     putExtra(EXTRA_TAG_VALUE, tagId)
+                }
             }
         }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_nfc_setup)
 
-        setSupportActionBar(findViewById(R.id.toolbar))
-        supportActionBar?.setDisplayHomeAsUpEnabled(true)
+        nfcAdapter = NfcAdapter.getDefaultAdapter(this)
 
-        findViewById<ComposeView>(R.id.compose_view).setContent {
+        val tagValue = intent.getStringExtra(EXTRA_TAG_VALUE)
+        viewModel.simpleWrite = tagValue != null
+        if (tagValue != null) {
+            viewModel.nfcTagIdToWrite.value = tagValue
+        }
+        viewModel.messageId = intent.getIntExtra(EXTRA_MESSAGE_ID, -1)
+
+        setContent {
             MdcTheme {
-                NfcWelcomeView(onReadClick = { /*TODO*/ }) {
-                    
-                }
+                NfcSetupView(
+                    navController = rememberNavController(),
+                    viewModel = viewModel,
+                    startDestination = when {
+                        tagValue != null -> "write/$tagValue"
+                        else -> "welcome"
+                    },
+                    onUpNavigation = { finish() }
+                )
             }
         }
-
-        mNfcAdapter = NfcAdapter.getDefaultAdapter(this)
-
-        intent.getStringExtra(EXTRA_TAG_VALUE)?.let {
-            simpleWrite = true
-            viewModel.nfcWriteTagEvent.postValue(it)
-        }
-
-        messageId = intent.getIntExtra(EXTRA_MESSAGE_ID, -1)
     }
 
     override fun onResume() {
         super.onResume()
-        mNfcAdapter?.let {
+        nfcAdapter?.let {
             NFCUtil.enableNFCInForeground(it, this, javaClass)
         }
     }
 
     override fun onPause() {
         super.onPause()
-        mNfcAdapter?.let {
+        nfcAdapter?.let {
             NFCUtil.disableNFCInForeground(it, this)
         }
-    }
-
-    override fun onOptionsItemSelected(item: MenuItem): Boolean {
-        when (item.itemId) {
-            android.R.id.home -> {
-                finish()
-                return true
-            }
-        }
-        return super.onOptionsItemSelected(item)
     }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
 
-        if (NfcAdapter.ACTION_TECH_DISCOVERED == intent.action) {
-            val nfcTagToWriteUUID = viewModel.nfcWriteTagEvent.value
+        if (intent.action == NfcAdapter.ACTION_TECH_DISCOVERED) {
+            val nfcTagToWriteUUID = viewModel.nfcTagIdToWrite.value
 
             // Create new nfc tag
             if (nfcTagToWriteUUID == null) {
-                val rawMessages = intent.getParcelableArrayExtra(NfcAdapter.EXTRA_NDEF_MESSAGES)
-                val ndefMessage = rawMessages?.firstOrNull() as NdefMessage?
-                val url = ndefMessage?.records?.get(0)?.toUri().toString()
-                val nfcTagId = UrlHandler.splitNfcTagId(url)
+                val nfcTagId = readNfcTag(intent)
                 if (nfcTagId == null) {
                     Log.w(TAG, "Unable to read tag!")
-                    Toast.makeText(this, commonR.string.nfc_invalid_tag, Toast.LENGTH_LONG).show()
-                } else {
-                    viewModel.nfcReadEvent.postValue(nfcTagId)
+                    Toast.makeText(
+                        applicationContext,
+                        R.string.nfc_invalid_tag,
+                        Toast.LENGTH_LONG
+                    ).show()
                 }
             } else {
                 try {
-                    val nfcTagUrl = "https://www.home-assistant.io/tag/$nfcTagToWriteUUID"
-                    NFCUtil.createNFCMessage(nfcTagUrl, intent)
-                    Log.d(TAG, "Wrote nfc tag with url: $nfcTagUrl")
-                    val message = commonR.string.nfc_write_tag_success
-                    Toast.makeText(applicationContext, message, Toast.LENGTH_LONG).show()
+                    val nfcTagUrl = writeNfcTag(intent, nfcTagToWriteUUID)
 
-                    viewModel.nfcReadEvent.value = nfcTagToWriteUUID
-                    viewModel.nfcWriteTagDoneEvent.value = nfcTagToWriteUUID
-                    // If we are a simple write it means the fontend asked us to write.  This means
+                    Log.d(TAG, "Wrote nfc tag with url: $nfcTagUrl")
+                    Toast.makeText(
+                        applicationContext,
+                        R.string.nfc_write_tag_success,
+                        Toast.LENGTH_LONG
+                    ).show()
+
+                    // If we are a simple write it means the frontend asked us to write.  This means
                     // we should return the user as fast as possible back to the UI to continue what
                     // they were doing!
-                    if (simpleWrite) {
-                        setResult(messageId)
+                    if (viewModel.simpleWrite) {
+                        setResult(viewModel.messageId)
                         finish()
                     }
                 } catch (e: Exception) {
-                    val message = commonR.string.nfc_write_tag_error
-                    Toast.makeText(applicationContext, message, Toast.LENGTH_LONG).show()
+                    Toast.makeText(
+                        applicationContext,
+                        R.string.nfc_write_tag_error,
+                        Toast.LENGTH_LONG
+                    ).show()
                     Log.e(TAG, "Unable to write tag.", e)
                 }
             }
         }
+    }
+
+    /**
+     * Reads the data provided in the NFC tag and update the view model.
+     * @return Tag ID that was read. Null if the tag was not created by Home Assistant.
+     */
+    private fun readNfcTag(intent: Intent): String? {
+        val url = NFCUtil.extractNFCTagUrl(intent)
+        val nfcTagId = NFCUtil.splitNfcTagId(url)
+        return nfcTagId?.also {
+            viewModel.tagRead(it)
+        }
+    }
+
+    /**
+     * Writes given data to the NFC tag.
+     * @return URL written to the tag.
+     */
+    private fun writeNfcTag(intent: Intent, nfcTagToWriteUUID: String): String {
+        val nfcTagUrl = "https://www.home-assistant.io/tag/$nfcTagToWriteUUID"
+        NFCUtil.createNFCMessage(nfcTagUrl, intent)
+
+        viewModel.tagWritten(nfcTagToWriteUUID)
+        return nfcTagUrl
     }
 }

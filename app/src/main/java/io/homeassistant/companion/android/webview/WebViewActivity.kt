@@ -524,8 +524,8 @@ class WebViewActivity : BaseActivity(), io.homeassistant.companion.android.webvi
                                     startActivityForResult(
                                         NfcSetupActivity.newInstance(
                                             this@WebViewActivity,
-                                            json.getJSONObject("payload").getString("tag"),
-                                            JSONObject(message).getInt("id")
+                                            tagId = json.getJSONObject("payload").getString("tag"),
+                                            messageId = JSONObject(message).getInt("id")
                                         ),
                                         NFC_COMPLETE
                                     )
