@@ -26,14 +26,7 @@ class NfcSetupActivity : ComponentActivity() {
         const val EXTRA_TAG_VALUE = "tag_value"
         const val EXTRA_MESSAGE_ID = "message_id"
 
-        fun newInstance(context: Context, tagId: String? = null, messageId: Int = -1): Intent {
-            return Intent(context, NfcSetupActivity::class.java).apply {
-                putExtra(EXTRA_MESSAGE_ID, messageId)
-                if (tagId != null) {
-                    putExtra(EXTRA_TAG_VALUE, tagId)
-                }
-            }
-        }
+        fun newInstance(context: Context): Intent = Intent(context, NfcSetupActivity::class.java)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {

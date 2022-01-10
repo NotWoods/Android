@@ -70,6 +70,7 @@ import io.homeassistant.companion.android.databinding.DialogAuthenticationBindin
 import io.homeassistant.companion.android.databinding.ExoPlayerViewBinding
 import io.homeassistant.companion.android.launch.LaunchActivity
 import io.homeassistant.companion.android.nfc.NfcSetupActivity
+import io.homeassistant.companion.android.nfc.WriteNfcTag
 import io.homeassistant.companion.android.sensors.SensorReceiver
 import io.homeassistant.companion.android.sensors.SensorWorker
 import io.homeassistant.companion.android.settings.SettingsActivity
@@ -100,8 +101,6 @@ class WebViewActivity : BaseActivity(), io.homeassistant.companion.android.webvi
         private const val TAG = "WebviewActivity"
         private const val CAMERA_REQUEST_CODE = 8675309
         private const val AUDIO_REQUEST_CODE = 42
-        private const val NFC_COMPLETE = 1
-        private const val FILE_CHOOSER_RESULT_CODE = 15
         private const val APP_PREFIX = "app://"
         private const val INTENT_PREFIX = "intent://"
         private const val MARKET_PREFIX = "https://play.google.com/store/apps/details?id="
@@ -117,6 +116,23 @@ class WebViewActivity : BaseActivity(), io.homeassistant.companion.android.webvi
     }
 
     private val ioScope: CoroutineScope = CoroutineScope(Dispatchers.Main + Job())
+
+    private val nfcCompleteCallback = registerForActivityResult(WriteNfcTag()) { messageId ->
+        val message = mapOf(
+            "id" to messageId,
+            "type" to "result",
+            "success" to true,
+            "result" to mapOf<String, String>()
+        )
+        webView.evaluateJavascript("externalBus(${JSONObject(message)})") {
+            Log.d(TAG, "NFC Write Complete $it")
+        }
+    }
+
+    private val fileChooserCallback = registerForActivityResult(OpenFileChooser()) { result ->
+        mFilePathCallback?.onReceiveValue(result)
+        mFilePathCallback = null
+    }
 
     @Inject
     lateinit var presenter: WebViewPresenter
@@ -408,9 +424,7 @@ class WebViewActivity : BaseActivity(), io.homeassistant.companion.android.webvi
                     fileChooserParams: FileChooserParams
                 ): Boolean {
                     mFilePathCallback = uploadMsg
-                    val i = fileChooserParams.createIntent()
-                    i.type = "*/*"
-                    startActivityForResult(i, FILE_CHOOSER_RESULT_CODE)
+                    fileChooserCallback.launch(fileChooserParams)
                     return true
                 }
 
@@ -521,13 +535,11 @@ class WebViewActivity : BaseActivity(), io.homeassistant.companion.android.webvi
                                         SettingsActivity.newInstance(this@WebViewActivity)
                                     )
                                 "tag/write" ->
-                                    startActivityForResult(
-                                        NfcSetupActivity.newInstance(
-                                            this@WebViewActivity,
-                                            tagId = json.getJSONObject("payload").getString("tag"),
+                                    nfcCompleteCallback.launch(
+                                        WriteNfcTag.SimpleWriteMessage(
+                                            tagIdentifier = json.getJSONObject("payload").getString("tag"),
                                             messageId = JSONObject(message).getInt("id")
-                                        ),
-                                        NFC_COMPLETE
+                                        )
                                     )
                                 "exoplayer/play_hls" -> exoPlayHls(json)
                                 "exoplayer/stop" -> exoStopHls()
@@ -653,24 +665,6 @@ class WebViewActivity : BaseActivity(), io.homeassistant.companion.android.webvi
             DisabledLocationHandler.showLocationDisabledWarnDialog(this@WebViewActivity, settingsWithLocationPermissions.toTypedArray(), true)
         } else {
             DisabledLocationHandler.removeLocationDisabledWarning(this@WebViewActivity)
-        }
-    }
-
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        super.onActivityResult(requestCode, resultCode, data)
-        if (requestCode == NFC_COMPLETE && resultCode != -1) {
-            val message = mapOf(
-                "id" to resultCode,
-                "type" to "result",
-                "success" to true,
-                "result" to mapOf<String, String>()
-            )
-            webView.evaluateJavascript("externalBus(${JSONObject(message)})") {
-                Log.d(TAG, "NFC Write Complete $it")
-            }
-        } else if (requestCode == FILE_CHOOSER_RESULT_CODE) {
-            mFilePathCallback?.onReceiveValue(WebChromeClient.FileChooserParams.parseResult(resultCode, data))
-            mFilePathCallback = null
         }
     }
 
