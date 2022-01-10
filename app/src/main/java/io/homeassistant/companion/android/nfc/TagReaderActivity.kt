@@ -2,28 +2,22 @@ package io.homeassistant.companion.android.nfc
 
 import android.content.Intent
 import android.net.Uri
-import android.nfc.NdefMessage
 import android.nfc.NfcAdapter
 import android.os.Bundle
 import android.util.Log
 import android.widget.Toast
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
 import androidx.lifecycle.lifecycleScope
-import com.mikepenz.iconics.typeface.library.community.material.CommunityMaterial.url
 import dagger.hilt.android.AndroidEntryPoint
-import io.homeassistant.companion.android.BaseActivity
-import io.homeassistant.companion.android.R
 import io.homeassistant.companion.android.common.data.integration.IntegrationRepository
 import io.homeassistant.companion.android.util.UrlHandler
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 import io.homeassistant.companion.android.common.R as commonR
 
 @AndroidEntryPoint
-class TagReaderActivity : BaseActivity() {
+class TagReaderActivity : ComponentActivity() {
 
     val TAG = TagReaderActivity::class.simpleName
 
@@ -32,9 +26,10 @@ class TagReaderActivity : BaseActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_tag_reader)
 
-        setSupportActionBar(findViewById(R.id.toolbar))
+        setContent {
+            TagReaderView()
+        }
 
         lifecycleScope.launch {
             if (NfcAdapter.ACTION_NDEF_DISCOVERED == intent.action) {
