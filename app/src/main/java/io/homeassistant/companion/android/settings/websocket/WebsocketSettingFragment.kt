@@ -43,11 +43,10 @@ class WebsocketSettingFragment : Fragment() {
         return ComposeView(requireContext()).apply {
             setContent {
                 MdcTheme {
-                    val settings = viewModel.getSettingFlow(0)
-                        .collectAsState(initial = viewModel.getSetting(0))
+                    val setting = viewModel.getSettingState(id = 0)
                     WebsocketSettingView(
-                        websocketSetting = settings.value.websocketSetting,
-                        onSettingChanged = { viewModel.updateWebsocketSetting(0, it) }
+                        websocketSetting = setting.value.websocketSetting,
+                        onSettingChanged = { viewModel.updateWebsocketSetting(setting.value, it) }
                     )
                 }
             }

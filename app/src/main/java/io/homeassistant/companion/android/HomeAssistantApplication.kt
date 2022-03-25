@@ -177,12 +177,14 @@ open class HomeAssistantApplication : Application() {
         }
 
         // Register for faster sensor updates if enabled
-        val settingDao = AppDatabase.getInstance(applicationContext).settingsDao().get(0)
-        if (settingDao != null && (settingDao.sensorUpdateFrequency == SensorUpdateFrequencySetting.FAST_WHILE_CHARGING || settingDao.sensorUpdateFrequency == SensorUpdateFrequencySetting.FAST_ALWAYS))
-            registerReceiver(
-                sensorReceiver,
-                IntentFilter(Intent.ACTION_TIME_TICK)
-            )
+        AppDatabase.getInstance(applicationContext).settingsDao().getSync(0)?.let { setting ->
+            if (setting.sensorUpdateFrequency == SensorUpdateFrequencySetting.FAST_WHILE_CHARGING || setting.sensorUpdateFrequency == SensorUpdateFrequencySetting.FAST_ALWAYS) {
+                registerReceiver(
+                    sensorReceiver,
+                    IntentFilter(Intent.ACTION_TIME_TICK)
+                )
+            }
+        }
 
         // Update widgets when the screen turns on, updates are skipped if widgets were not added
         val buttonWidget = ButtonWidget()

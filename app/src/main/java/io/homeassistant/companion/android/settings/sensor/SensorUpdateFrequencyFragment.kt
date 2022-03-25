@@ -43,11 +43,10 @@ class SensorUpdateFrequencyFragment : Fragment() {
         return ComposeView(requireContext()).apply {
             setContent {
                 MdcTheme {
-                    val settings = viewModel.getSettingFlow(0)
-                        .collectAsState(initial = viewModel.getSetting(0))
+                    val setting = viewModel.getSettingState(id = 0)
                     SensorUpdateFrequencyView(
-                        sensorUpdateFrequency = settings.value.sensorUpdateFrequency,
-                        onSettingChanged = { viewModel.updateSensorSetting(0, it) }
+                        sensorUpdateFrequency = setting.value.sensorUpdateFrequency,
+                        onSettingChanged = { viewModel.updateSensorSetting(setting.value, it) }
                     )
                 }
             }
