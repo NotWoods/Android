@@ -57,6 +57,11 @@ interface IntegrationRepository {
 
     suspend fun getServices(): List<Service>?
 
+    /**
+     * Fetches a list of current entities and their states from the Home Assistant server.
+     * Returns a list sorted by entity ID.
+     * https://developers.home-assistant.io/docs/api/websocket/#fetching-states
+     */
     suspend fun getEntities(): List<Entity<Any>>?
     suspend fun getEntity(entityId: String): Entity<Map<String, Any>>?
     suspend fun getEntityUpdates(): Flow<Entity<*>>?

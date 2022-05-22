@@ -216,8 +216,7 @@ private fun CreateShortcutView(i: Int, viewModel: ManageShortcutsViewModel, icon
         }
 
         DropdownMenu(expanded = expandedEntity, onDismissRequest = { expandedEntity = false }) {
-            val sortedEntities = viewModel.entities.values.sortedBy { it.entityId }
-            for (item in sortedEntities) {
+            for (item in viewModel.sortedEntities) {
                 DropdownMenuItem(onClick = {
                     viewModel.shortcuts[i].path.value = "entityId:${item.entityId}"
                     expandedEntity = false

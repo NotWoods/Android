@@ -37,7 +37,7 @@ fun LoadWearFavoritesSettings(
 ) {
     val reorderState = rememberReorderState()
 
-    val validEntities = settingsWearViewModel.entities.filter { it.key.split(".")[0] in settingsWearViewModel.supportedDomains }.values.sortedBy { it.entityId }.toList()
+    val validEntities = settingsWearViewModel.validEntities
     val favoriteEntities = settingsWearViewModel.favoriteEntityIds
     Scaffold(
         topBar = {

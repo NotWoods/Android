@@ -4,8 +4,10 @@ import android.app.Application
 import android.graphics.PorterDuff
 import android.widget.Toast
 import androidx.appcompat.content.res.AppCompatResources
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.core.graphics.drawable.DrawableCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -20,6 +22,7 @@ import io.homeassistant.companion.android.common.data.integration.IntegrationRep
 import io.homeassistant.companion.android.common.data.integration.domain
 import io.homeassistant.companion.android.database.AppDatabase
 import io.homeassistant.companion.android.database.qs.TileEntity
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -33,7 +36,7 @@ class ManageTilesViewModel @Inject constructor(
 
     private val tileDao = AppDatabase.getInstance(application).tileDao()
     fun currentTile() = tileDao.get(selectedTile.value)
-    var entities = mutableStateMapOf<String, Entity<*>>()
+    var sortedEntities by mutableStateOf<List<Entity<*>>>(emptyList())
         private set
     var selectedTile = mutableStateOf("tile_1")
         private set
@@ -51,11 +54,9 @@ class ManageTilesViewModel @Inject constructor(
         private set
 
     init {
-        viewModelScope.launch {
-            integrationUseCase.getEntities()?.forEach {
-                if (it.domain in ManageTilesFragment.validDomains)
-                    entities[it.entityId] = it
-            }
+        viewModelScope.launch(Dispatchers.IO) {
+            sortedEntities = integrationUseCase.getEntities().orEmpty()
+                .filter { it.domain in ManageTilesFragment.validDomains }
         }
     }
 

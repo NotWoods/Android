@@ -3,9 +3,12 @@ package io.homeassistant.companion.android.settings.wear
 import android.app.Application
 import android.util.Log
 import android.widget.Toast
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
@@ -22,6 +25,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import io.homeassistant.companion.android.HomeAssistantApplication
 import io.homeassistant.companion.android.common.data.integration.Entity
 import io.homeassistant.companion.android.common.data.integration.IntegrationRepository
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import org.burnoutcrew.reorderable.ItemPosition
 import org.burnoutcrew.reorderable.move
@@ -54,10 +58,8 @@ class SettingsWearViewModel @Inject constructor(
         private set
     var isAuthenticated = mutableStateOf(false)
         private set
-    var entities = mutableStateMapOf<String, Entity<*>>()
-        private set
-    var supportedDomains = mutableStateListOf<String>()
-        private set
+    private var sortedEntities by mutableStateOf<List<Entity<*>>>(emptyList())
+    private var supportedDomains by mutableStateOf<List<String>>(emptyList())
     var favoriteEntityIds = mutableStateListOf<String>()
         private set
     var templateTileContent = mutableStateOf("")
@@ -66,6 +68,10 @@ class SettingsWearViewModel @Inject constructor(
         private set
     var templateTileRefreshInterval = mutableStateOf(0)
         private set
+
+    val validEntities by derivedStateOf {
+        sortedEntities.filter { it.entityId.split(".")[0] in supportedDomains }
+    }
 
     init {
         Wearable.getDataClient(application).addListener(this)
@@ -96,10 +102,8 @@ class SettingsWearViewModel @Inject constructor(
                     Toast.LENGTH_LONG
                 ).show()
             }
-        viewModelScope.launch {
-            integrationUseCase.getEntities()?.forEach {
-                entities[it.entityId] = it
-            }
+        viewModelScope.launch(Dispatchers.IO) {
+            sortedEntities = integrationUseCase.getEntities().orEmpty()
         }
     }
 
@@ -217,10 +221,8 @@ class SettingsWearViewModel @Inject constructor(
 
     private fun onLoadConfigFromWear(data: DataMap) {
         isAuthenticated.value = data.getBoolean(KEY_IS_AUTHENTICATED, false)
-        val supportedDomainsList: List<String> =
+        supportedDomains =
             objectMapper.readValue(data.getString(KEY_SUPPORTED_DOMAINS, "[\"input_boolean\", \"light\", \"lock\", \"switch\", \"script\", \"scene\"]"))
-        supportedDomains.clear()
-        supportedDomains.addAll(supportedDomainsList)
         val favoriteEntityIdList: List<String> =
             objectMapper.readValue(data.getString(KEY_FAVORITES, "[]"))
         favoriteEntityIds.clear()

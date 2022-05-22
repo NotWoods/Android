@@ -133,8 +133,7 @@ fun ManageTilesView(
             }
 
             DropdownMenu(expanded = expandedEntity, onDismissRequest = { expandedEntity = false }) {
-                val sortedEntities = viewModel.entities.values.sortedBy { it.entityId }
-                for (item in sortedEntities) {
+                for (item in viewModel.sortedEntities) {
                     DropdownMenuItem(onClick = {
                         viewModel.selectedEntityId.value = item.entityId
                         expandedEntity = false

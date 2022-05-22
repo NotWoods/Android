@@ -14,9 +14,11 @@ import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.appcompat.content.res.AppCompatResources
 import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.core.content.getSystemService
 import androidx.core.graphics.drawable.DrawableCompat
 import androidx.lifecycle.AndroidViewModel
@@ -28,7 +30,10 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import io.homeassistant.companion.android.common.R
 import io.homeassistant.companion.android.common.data.integration.Entity
 import io.homeassistant.companion.android.common.data.integration.IntegrationRepository
+import io.homeassistant.companion.android.common.data.integration.domain
+import io.homeassistant.companion.android.settings.qs.ManageTilesFragment
 import io.homeassistant.companion.android.webview.WebViewActivity
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -49,7 +54,7 @@ class ManageShortcutsViewModel @Inject constructor(
     var dynamicShortcuts: MutableList<ShortcutInfo> = shortcutManager.dynamicShortcuts
         private set
 
-    var entities = mutableStateMapOf<String, Entity<*>>()
+    var sortedEntities by mutableStateOf<List<Entity<*>>>(emptyList())
         private set
 
     data class Shortcut(
@@ -67,10 +72,8 @@ class ManageShortcutsViewModel @Inject constructor(
         private set
 
     init {
-        viewModelScope.launch {
-            integrationUseCase.getEntities()?.forEach {
-                entities[it.entityId] = it
-            }
+        viewModelScope.launch(Dispatchers.IO) {
+            sortedEntities = integrationUseCase.getEntities().orEmpty()
         }
         Log.d(TAG, "We have ${dynamicShortcuts.size} dynamic shortcuts")
 
