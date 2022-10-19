@@ -8,8 +8,9 @@ import androidx.room.PrimaryKey
 data class ButtonWidgetEntity(
     @PrimaryKey
     override val id: Int,
-    @ColumnInfo(name = "icon_id")
-    val iconId: Int,
+    /** Name of the Material icon used for the widget, such as "account-alert". */
+    @ColumnInfo(name = "iconName")
+    val iconName: String,
     @ColumnInfo(name = "domain")
     val domain: String,
     @ColumnInfo(name = "service")

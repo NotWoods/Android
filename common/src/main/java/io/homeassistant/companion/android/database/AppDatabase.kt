@@ -1,17 +1,22 @@
 package io.homeassistant.companion.android.database
 
+import android.annotation.SuppressLint
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.ContentValues
 import android.content.Context
+import android.content.res.AssetManager
+import android.database.Cursor
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import android.util.JsonReader
 import android.util.Log
 import android.widget.Toast
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.getSystemService
+import androidx.core.database.getStringOrNull
 import androidx.room.AutoMigration
 import androidx.room.Database
 import androidx.room.OnConflictStrategy
@@ -55,6 +60,8 @@ import io.homeassistant.companion.android.database.widget.TemplateWidgetDao
 import io.homeassistant.companion.android.database.widget.TemplateWidgetEntity
 import io.homeassistant.companion.android.database.widget.WidgetBackgroundTypeConverter
 import kotlinx.coroutines.runBlocking
+import java.io.IOException
+import java.io.InputStreamReader
 import io.homeassistant.companion.android.common.R as commonR
 
 @Database(
@@ -94,6 +101,7 @@ import io.homeassistant.companion.android.common.R as commonR
     SensorSettingTypeConverter::class,
     WidgetBackgroundTypeConverter::class
 )
+@SuppressLint("Range")
 abstract class AppDatabase : RoomDatabase() {
     abstract fun authenticationDao(): AuthenticationDao
     abstract fun sensorDao(): SensorDao
@@ -153,7 +161,8 @@ abstract class AppDatabase : RoomDatabase() {
                     MIGRATION_20_21,
                     MIGRATION_21_22,
                     MIGRATION_22_23,
-                    MIGRATION_23_24
+                    MIGRATION_23_24,
+                    Migration33to34(context.assets)
                 )
                 .fallbackToDestructiveMigration()
                 .build()
@@ -517,6 +526,130 @@ abstract class AppDatabase : RoomDatabase() {
                 // Update 'registered' in the sensors table to set the value to null instead of the previous default of 0
                 // This will force an update to indicate whether a sensor is not registered (null) or registered as disabled (0)
                 db.execSQL("UPDATE `sensors` SET `registered` = NULL")
+            }
+        }
+
+        private class Migration33to34(private val assets: AssetManager) : Migration(33, 34) {
+            private val iconIdToNameMap by lazy { loadIconIdToNameMap() }
+
+            /**
+             * Read JSON map of icondialog IDs to material icon names.
+             * @throws {IOException}
+             */
+            private fun loadIconIdToNameMap(): Map<Int, String> {
+                val inputStream = assets.open("icons/mdi_id_map.json")
+                return JsonReader(InputStreamReader(inputStream)).use { reader ->
+                    val idToNameMap = mutableMapOf<Int, String>()
+                    reader.beginObject()
+                    while (reader.hasNext()) {
+                        val iconName = reader.nextName()
+                        val iconId = reader.nextInt()
+                        idToNameMap[iconId] = iconName
+                    }
+                    reader.endObject()
+
+                    idToNameMap
+                }
+            }
+
+            private fun Cursor.getIconName(index: Int): String {
+                val iconId = getInt(index)
+                return iconIdToNameMap.getValue(iconId)
+            }
+
+            private fun Cursor.getIconNameOrNull(index: Int): String? {
+                if (isNull(index)) {
+                    return null
+                }
+
+                return try {
+                    getIconName(index)
+                } catch (e: IOException) {
+                    // Could not read assets
+                    null
+                } catch (e: NoSuchElementException) {
+                    // ID was invalid
+                    null
+                }
+            }
+
+            override fun migrate(database: SupportSQLiteDatabase) {
+                val tilesCursor = database.query("SELECT * FROM qs_tiles")
+                val tiles = mutableListOf<ContentValues>()
+                var tilesMigrationSuccessful = false
+                var tilesMigrationFailed = false
+                try {
+                    if (tilesCursor.moveToFirst()) {
+                        while (tilesCursor.moveToNext()) {
+                            tiles.add(
+                                ContentValues().also {
+                                    it.put("id", tilesCursor.getInt(tilesCursor.getColumnIndex("id")))
+                                    it.put("tileId", tilesCursor.getString(tilesCursor.getColumnIndex("tileId")))
+                                    it.put(
+                                        "added",
+                                        tilesCursor.getInt(tilesCursor.getColumnIndex("added"))
+                                    )
+                                    it.put("iconName", tilesCursor.getIconNameOrNull(tilesCursor.getColumnIndex("icon_id")))
+                                    it.put("entityId", tilesCursor.getString(tilesCursor.getColumnIndex("entityId")))
+                                    it.put("label", tilesCursor.getStringOrNull(tilesCursor.getColumnIndex("label")))
+                                    it.put("subtitle", tilesCursor.getStringOrNull(tilesCursor.getColumnIndex("subtitle")))
+                                }
+                            )
+                        }
+                        tilesMigrationSuccessful = true
+                    }
+                    tilesCursor.close()
+                } catch (e: Exception) {
+                    tilesMigrationFailed = true
+                    Log.e(TAG, "Unable to migrate, proceeding with recreating the table", e)
+                }
+                database.execSQL("DROP TABLE IF EXISTS `qs_tiles`")
+                database.execSQL("CREATE TABLE IF NOT EXISTS `qs_tiles` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `tileId` TEXT NOT NULL, `added` INTEGER NOT NULL, `iconName` TEXT, `entityId` TEXT NOT NULL, `label` TEXT NOT NULL, `subtitle` TEXT)")
+                if (tilesMigrationSuccessful) {
+                    tiles.forEach {
+                        database.insert("qs_tiles", OnConflictStrategy.REPLACE, it)
+                    }
+                }
+                if (tilesMigrationFailed)
+                    notifyMigrationFailed()
+
+                val widgetCursor = database.query("SELECT * FROM button_widgets")
+                val widgets = mutableListOf<ContentValues>()
+                var widgetMigrationSuccessful = false
+                var widgetMigrationFailed = false
+                try {
+                    if (widgetCursor.moveToFirst()) {
+                        while (widgetCursor.moveToNext()) {
+                            widgets.add(
+                                ContentValues().also {
+                                    it.put("id", widgetCursor.getString(widgetCursor.getColumnIndex("id")))
+                                    it.put("iconName", tilesCursor.getIconName(tilesCursor.getColumnIndex("icon_id")))
+                                    it.put("domain", widgetCursor.getString(widgetCursor.getColumnIndex("domain")))
+                                    it.put("service", widgetCursor.getString(widgetCursor.getColumnIndex("service")))
+                                    it.put("service_data", widgetCursor.getString(widgetCursor.getColumnIndex("service_data")))
+                                    it.put("label", widgetCursor.getStringOrNull(widgetCursor.getColumnIndex("label")))
+                                    it.put("background_type", widgetCursor.getString(widgetCursor.getColumnIndex("background_type")))
+                                    it.put("text_color", widgetCursor.getStringOrNull(widgetCursor.getColumnIndex("text_color")))
+                                    it.put("require_authentication", widgetCursor.getString(widgetCursor.getColumnIndex("require_authentication")))
+                                }
+                            )
+                        }
+                        widgetMigrationSuccessful = true
+                    }
+                    widgetCursor.close()
+                } catch (e: Exception) {
+                    widgetMigrationFailed = true
+                    Log.e(TAG, "Unable to migrate, proceeding with recreating the table", e)
+                }
+                database.execSQL("DROP TABLE IF EXISTS `button_widgets`")
+                database.execSQL("CREATE TABLE IF NOT EXISTS `button_widgets` (`id` INTEGER NOT NULL, `iconName` TEXT NOT NULL, `domain` TEXT NOT NULL, `service` TEXT NOT NULL, `service_data` TEXT NOT NULL, `label` TEXT, `background_type` TEXT NOT NULL, `text_color` TEXT, `require_authentication` INTEGER NOT NULL DEFAULT '0', PRIMARY KEY(`id`))")
+                if (widgetMigrationSuccessful) {
+                    widgets.forEach {
+                        database.insert("button_widgets", OnConflictStrategy.REPLACE, it)
+                    }
+                }
+                if (widgetMigrationFailed)
+                    notifyMigrationFailed()
             }
         }
 
