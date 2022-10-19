@@ -5,12 +5,10 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.ContentValues
 import android.content.Context
-import android.content.res.AssetManager
 import android.database.Cursor
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
-import android.util.JsonReader
 import android.util.Log
 import android.widget.Toast
 import androidx.core.app.NotificationCompat
@@ -26,7 +24,12 @@ import androidx.room.TypeConverters
 import androidx.room.migration.AutoMigrationSpec
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
+import dagger.hilt.EntryPoint
+import dagger.hilt.InstallIn
+import dagger.hilt.android.EntryPointAccessors
+import dagger.hilt.components.SingletonComponent
 import io.homeassistant.companion.android.common.data.integration.IntegrationRepository
+import io.homeassistant.companion.android.common.icons.IconDialogCompat
 import io.homeassistant.companion.android.common.util.databaseChannel
 import io.homeassistant.companion.android.database.authentication.Authentication
 import io.homeassistant.companion.android.database.authentication.AuthenticationDao
@@ -61,7 +64,6 @@ import io.homeassistant.companion.android.database.widget.TemplateWidgetEntity
 import io.homeassistant.companion.android.database.widget.WidgetBackgroundTypeConverter
 import kotlinx.coroutines.runBlocking
 import java.io.IOException
-import java.io.InputStreamReader
 import io.homeassistant.companion.android.common.R as commonR
 
 @Database(
@@ -117,6 +119,12 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun settingsDao(): SettingsDao
 
     companion object {
+        @EntryPoint
+        @InstallIn(SingletonComponent::class)
+        interface RoomEntryPoint {
+            fun iconDialogCompat(): IconDialogCompat
+        }
+
         private const val DATABASE_NAME = "HomeAssistantDB"
         internal const val TAG = "AppDatabase"
         private const val NOTIFICATION_ID = 45
@@ -134,6 +142,7 @@ abstract class AppDatabase : RoomDatabase() {
         }
 
         private fun buildDatabase(context: Context): AppDatabase {
+            val entryPoint = EntryPointAccessors.fromApplication<RoomEntryPoint>(context)
             appContext = context
             return Room
                 .databaseBuilder(context, AppDatabase::class.java, DATABASE_NAME)
@@ -162,7 +171,7 @@ abstract class AppDatabase : RoomDatabase() {
                     MIGRATION_21_22,
                     MIGRATION_22_23,
                     MIGRATION_23_24,
-                    Migration33to34(context.assets)
+                    Migration33to34(entryPoint.iconDialogCompat())
                 )
                 .fallbackToDestructiveMigration()
                 .build()
@@ -529,32 +538,12 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
-        private class Migration33to34(private val assets: AssetManager) : Migration(33, 34) {
-            private val iconIdToNameMap by lazy { loadIconIdToNameMap() }
-
-            /**
-             * Read JSON map of icondialog IDs to material icon names.
-             * @throws {IOException}
-             */
-            private fun loadIconIdToNameMap(): Map<Int, String> {
-                val inputStream = assets.open("icons/mdi_id_map.json")
-                return JsonReader(InputStreamReader(inputStream)).use { reader ->
-                    val idToNameMap = mutableMapOf<Int, String>()
-                    reader.beginObject()
-                    while (reader.hasNext()) {
-                        val iconName = reader.nextName()
-                        val iconId = reader.nextInt()
-                        idToNameMap[iconId] = iconName
-                    }
-                    reader.endObject()
-
-                    idToNameMap
-                }
-            }
-
+        private class Migration33to34(private val iconDialogCompat: IconDialogCompat) : Migration(33, 34) {
             private fun Cursor.getIconName(index: Int): String {
+                iconDialogCompat.initializeSync()
+
                 val iconId = getInt(index)
-                return iconIdToNameMap.getValue(iconId)
+                return iconDialogCompat.getIconName(iconId) ?: throw NoSuchElementException("Invalid icon ID $iconId")
             }
 
             private fun Cursor.getIconNameOrNull(index: Int): String? {

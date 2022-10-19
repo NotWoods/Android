@@ -22,12 +22,11 @@ import androidx.core.graphics.drawable.DrawableCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.maltaisn.icondialog.pack.IconPack
-import com.maltaisn.icondialog.pack.IconPackLoader
-import com.maltaisn.iconpack.mdi.createMaterialDesignIconPack
 import dagger.hilt.android.lifecycle.HiltViewModel
 import io.homeassistant.companion.android.common.R
 import io.homeassistant.companion.android.common.data.integration.Entity
 import io.homeassistant.companion.android.common.data.integration.IntegrationRepository
+import io.homeassistant.companion.android.common.icons.IconDialogCompat
 import io.homeassistant.companion.android.webview.WebViewActivity
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -38,6 +37,8 @@ class ManageShortcutsViewModel @Inject constructor(
     private val integrationUseCase: IntegrationRepository,
     application: Application
 ) : AndroidViewModel(application) {
+
+    lateinit var iconDialogCompat: IconDialogCompat
 
     val app = application
     private val TAG = "ShortcutViewModel"
@@ -54,7 +55,7 @@ class ManageShortcutsViewModel @Inject constructor(
 
     data class Shortcut(
         var id: MutableState<String?>,
-        var selectedIcon: MutableState<Int>,
+        var selectedIcon: MutableState<String>,
         var label: MutableState<String>,
         var desc: MutableState<String>,
         var path: MutableState<String>,
@@ -83,7 +84,7 @@ class ManageShortcutsViewModel @Inject constructor(
             shortcuts.add(
                 Shortcut(
                     mutableStateOf(""),
-                    mutableStateOf(0),
+                    mutableStateOf(""),
                     mutableStateOf(""),
                     mutableStateOf(""),
                     mutableStateOf(""),
@@ -100,7 +101,7 @@ class ManageShortcutsViewModel @Inject constructor(
         }
     }
 
-    fun createShortcut(shortcutId: String, shortcutLabel: String, shortcutDesc: String, shortcutPath: String, bitmap: Bitmap? = null, iconId: Int) {
+    fun createShortcut(shortcutId: String, shortcutLabel: String, shortcutDesc: String, shortcutPath: String, bitmap: Bitmap? = null, iconName: String) {
         Log.d(TAG, "Attempt to add shortcut $shortcutId")
         val intent = Intent(
             WebViewActivity.newInstance(getApplication(), shortcutPath).addFlags(
@@ -110,7 +111,7 @@ class ManageShortcutsViewModel @Inject constructor(
         intent.action = shortcutPath
         intent.addFlags(Intent.FLAG_ACTIVITY_MULTIPLE_TASK)
         intent.addFlags(Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS)
-        intent.putExtra("iconId", iconId)
+        intent.putExtra("iconName", iconName)
 
         val shortcut = ShortcutInfo.Builder(getApplication(), shortcutId)
             .setShortLabel(shortcutLabel)
@@ -153,54 +154,62 @@ class ManageShortcutsViewModel @Inject constructor(
     }
 
     fun setPinnedShortcutData(shortcutId: String) {
-        for (item in pinnedShortcuts) {
-            if (item.id == shortcutId) {
-                shortcuts.last().id.value = item.id
-                shortcuts.last().label.value = item.shortLabel.toString()
-                shortcuts.last().desc.value = item.longLabel.toString()
-                shortcuts.last().path.value = item.intent?.action.toString()
-                shortcuts.last().selectedIcon.value = item.intent?.extras?.getInt("iconId").toString().toIntOrNull() ?: 0
-                if (shortcuts.last().selectedIcon.value != 0)
-                    shortcuts.last().drawable.value = getTileIcon(shortcuts.last().selectedIcon.value)
-                if (shortcuts.last().path.value.startsWith("entityId:"))
-                    shortcuts.last().type.value = "entityId"
-                else
-                    shortcuts.last().type.value = "lovelace"
-            }
-        }
-    }
-
-    fun setDynamicShortcutData(shortcutId: String, index: Int) {
-        if (dynamicShortcuts.isNotEmpty()) {
-            for (item in dynamicShortcuts) {
+        viewModelScope.launch {
+            for (item in pinnedShortcuts) {
                 if (item.id == shortcutId) {
-                    Log.d(TAG, "setting ${item.id} data")
-                    shortcuts[index].label.value = item.shortLabel.toString()
-                    shortcuts[index].desc.value = item.longLabel.toString()
-                    shortcuts[index].path.value = item.intent?.action.toString()
-                    shortcuts[index].selectedIcon.value = item.intent?.extras?.getInt("iconId").toString().toIntOrNull() ?: 0
-                    if (shortcuts[index].selectedIcon.value != 0)
-                        shortcuts[index].drawable.value = getTileIcon(shortcuts[index].selectedIcon.value)
-                    if (shortcuts[index].path.value.startsWith("entityId:"))
-                        shortcuts[index].type.value = "entityId"
+                    shortcuts.last().id.value = item.id
+                    shortcuts.last().label.value = item.shortLabel.toString()
+                    shortcuts.last().desc.value = item.longLabel.toString()
+                    shortcuts.last().path.value = item.intent?.action.toString()
+                    shortcuts.last().setIconFromIntent(item.intent)
+                    if (shortcuts.last().path.value.startsWith("entityId:"))
+                        shortcuts.last().type.value = "entityId"
                     else
-                        shortcuts[index].type.value = "lovelace"
+                        shortcuts.last().type.value = "lovelace"
                 }
             }
         }
     }
 
-    private fun getTileIcon(tileIconId: Int): Drawable? {
-        val loader = IconPackLoader(getApplication())
-        iconPack = createMaterialDesignIconPack(loader)
-        iconPack.loadDrawables(loader.drawableLoader)
-        val iconDrawable = iconPack.icons[tileIconId]?.drawable
-        if (iconDrawable != null) {
-            val icon = DrawableCompat.wrap(iconDrawable)
-            icon.setColorFilter(app.resources.getColor(R.color.colorAccent), PorterDuff.Mode.SRC_IN)
-            return icon
+    fun setDynamicShortcutData(shortcutId: String, index: Int) {
+        viewModelScope.launch {
+            if (dynamicShortcuts.isNotEmpty()) {
+                for (item in dynamicShortcuts) {
+                    if (item.id == shortcutId) {
+                        Log.d(TAG, "setting ${item.id} data")
+                        shortcuts[index].label.value = item.shortLabel.toString()
+                        shortcuts[index].desc.value = item.longLabel.toString()
+                        shortcuts[index].path.value = item.intent?.action.toString()
+                        shortcuts[index].setIconFromIntent(item.intent)
+                        if (shortcuts[index].path.value.startsWith("entityId:"))
+                            shortcuts[index].type.value = "entityId"
+                        else
+                            shortcuts[index].type.value = "lovelace"
+                    }
+                }
+            }
         }
-        return null
+    }
+
+    private suspend fun Shortcut.setIconFromIntent(intent: Intent?) {
+        var iconName = intent?.getStringExtra("iconName")
+        if (iconName.isNullOrBlank() && intent?.extras?.containsKey("iconId") == true) {
+            val iconId = intent.extras?.getInt("iconId").toString().toIntOrNull()
+            iconDialogCompat.initializeAsync()
+            iconName = iconId?.let { iconDialogCompat.getIconName(iconId) }
+        }
+
+        selectedIcon.value = iconName.orEmpty()
+        if (!iconName.isNullOrEmpty()) {
+            iconDialogCompat.initializeAsync()
+            val iconId = iconDialogCompat.getIconId(iconName)
+            val iconDrawable = iconPack.icons[iconId]?.drawable
+            drawable.value = iconDrawable?.let {
+                val icon = DrawableCompat.wrap(iconDrawable)
+                icon.setColorFilter(app.resources.getColor(R.color.colorAccent), PorterDuff.Mode.SRC_IN)
+                icon
+            }
+        }
     }
 
     fun updatePinnedShortcuts() {

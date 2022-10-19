@@ -1,6 +1,5 @@
 package io.homeassistant.companion.android.qs
 
-import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.drawable.Icon
@@ -13,14 +12,13 @@ import androidx.annotation.RequiresApi
 import androidx.core.graphics.drawable.DrawableCompat
 import androidx.core.graphics.drawable.toBitmap
 import com.maltaisn.icondialog.pack.IconPack
-import com.maltaisn.icondialog.pack.IconPackLoader
-import com.maltaisn.iconpack.mdi.createMaterialDesignIconPack
 import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
 import dagger.hilt.android.AndroidEntryPoint
 import dagger.hilt.android.EntryPointAccessors
 import dagger.hilt.components.SingletonComponent
 import io.homeassistant.companion.android.common.data.integration.IntegrationRepository
+import io.homeassistant.companion.android.common.icons.IconDialogCompat
 import io.homeassistant.companion.android.database.qs.TileDao
 import io.homeassistant.companion.android.database.qs.TileEntity
 import io.homeassistant.companion.android.database.qs.isSetup
@@ -46,6 +44,12 @@ abstract class TileExtensions : TileService() {
 
     @Inject
     lateinit var tileDao: TileDao
+
+    @Inject
+    lateinit var iconPack: IconPack
+
+    @Inject
+    lateinit var iconDialogCompat: IconDialogCompat
 
     private val mainScope = MainScope()
 
@@ -99,7 +103,6 @@ abstract class TileExtensions : TileService() {
 
     private suspend fun setTileData(tileId: String, tile: Tile): Boolean {
         Log.d(TAG, "Attempting to set tile data for tile ID: $tileId")
-        val context = applicationContext
         val tileData = tileDao.get(tileId)
         try {
             return if (tileData != null && tileData.isSetup) {
@@ -118,9 +121,9 @@ abstract class TileExtensions : TileService() {
                 } else
                     tile.state = Tile.STATE_INACTIVE
 
-                val iconId = tileData.iconId
-                if (iconId != null) {
-                    val icon = getTileIcon(iconId, context)
+                val iconName = tileData.iconName
+                if (iconName != null) {
+                    val icon = getTileIcon(iconName)
                     tile.icon = Icon.createWithBitmap(icon)
                 }
                 Log.d(TAG, "Tile data set for tile ID: $tileId")
@@ -144,6 +147,14 @@ abstract class TileExtensions : TileService() {
         } catch (e: Exception) {
             Log.e(TAG, "Unable to set tile data for tile ID: $tileId", e)
             return false
+        }
+    }
+
+    private suspend fun getTileIcon(iconName: String): Bitmap? {
+        iconDialogCompat.initializeAsync()
+        val iconId = iconDialogCompat.getIconId(iconName)
+        return iconPack.icons[iconId]?.drawable?.let { iconDrawable ->
+            DrawableCompat.wrap(iconDrawable).toBitmap()
         }
     }
 
@@ -214,7 +225,7 @@ abstract class TileExtensions : TileService() {
                     TileEntity(
                         tileId = tileId,
                         added = added,
-                        iconId = null,
+                        iconName = null,
                         entityId = "",
                         label = "",
                         subtitle = null
@@ -226,27 +237,11 @@ abstract class TileExtensions : TileService() {
 
     companion object {
         private const val TAG = "TileExtensions"
-        private var iconPack: IconPack? = null
         private val toggleDomains = listOf(
             "cover", "fan", "humidifier", "input_boolean", "light",
             "media_player", "remote", "siren", "switch"
         )
         private val validActiveStates = listOf("on", "open", "locked")
-
-        private fun getTileIcon(tileIconId: Int, context: Context): Bitmap? {
-            // Create an icon pack and load all drawables.
-            if (iconPack == null) {
-                val loader = IconPackLoader(context)
-                iconPack = createMaterialDesignIconPack(loader)
-                iconPack!!.loadDrawables(loader.drawableLoader)
-            }
-
-            val iconDrawable = iconPack?.icons?.get(tileIconId)?.drawable
-            if (iconDrawable != null) {
-                return DrawableCompat.wrap(iconDrawable).toBitmap()
-            }
-            return null
-        }
     }
 
     private fun handleInject() {

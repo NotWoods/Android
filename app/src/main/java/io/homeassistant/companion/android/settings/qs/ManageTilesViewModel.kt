@@ -17,12 +17,11 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
 import com.maltaisn.icondialog.data.Icon
 import com.maltaisn.icondialog.pack.IconPack
-import com.maltaisn.icondialog.pack.IconPackLoader
-import com.maltaisn.iconpack.mdi.createMaterialDesignIconPack
 import dagger.hilt.android.lifecycle.HiltViewModel
 import io.homeassistant.companion.android.common.data.integration.Entity
 import io.homeassistant.companion.android.common.data.integration.IntegrationRepository
 import io.homeassistant.companion.android.common.data.integration.domain
+import io.homeassistant.companion.android.common.icons.IconDialogCompat
 import io.homeassistant.companion.android.database.qs.TileDao
 import io.homeassistant.companion.android.database.qs.TileEntity
 import io.homeassistant.companion.android.database.qs.isSetup
@@ -42,7 +41,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import java.util.concurrent.Executors
 import javax.inject.Inject
 import io.homeassistant.companion.android.common.R as commonR
@@ -60,6 +58,7 @@ class ManageTilesViewModel @Inject constructor(
     }
 
     lateinit var iconPack: IconPack
+    lateinit var iconDialogCompat: IconDialogCompat
 
     private val app = application
 
@@ -78,7 +77,7 @@ class ManageTilesViewModel @Inject constructor(
     var submitButtonLabel by mutableStateOf(commonR.string.tile_save)
         private set
 
-    private var selectedIcon: Int? = null
+    private var selectedIcon: String? = null
     private var selectedTileId = 0
     private var selectedTileAdded = false
 
@@ -102,15 +101,8 @@ class ManageTilesViewModel @Inject constructor(
                 .filter { it.domain in ManageTilesFragment.validDomains }
         }
 
-        viewModelScope.launch(Dispatchers.IO) {
-            val loader = IconPackLoader(getApplication())
-            iconPack = createMaterialDesignIconPack(loader)
-            iconPack.loadDrawables(loader.drawableLoader)
-            withContext(Dispatchers.Main) {
-                // The icon pack might not have been initialized when the tile data was loaded
-                selectTile(slots.indexOf(selectedTile))
-            }
-        }
+        // The icon pack might not have been initialized when the tile data was loaded
+        selectTile(slots.indexOf(selectedTile))
     }
 
     fun selectTile(index: Int) {
@@ -131,7 +123,7 @@ class ManageTilesViewModel @Inject constructor(
     }
 
     fun selectIcon(icon: Icon?) {
-        selectedIcon = icon?.id
+        selectedIcon = icon?.let { iconDialogCompat.getIconName(icon.id) }
         selectedIconDrawable = icon?.drawable?.let { DrawableCompat.wrap(it) }
     }
 
@@ -140,9 +132,10 @@ class ManageTilesViewModel @Inject constructor(
         tileSubtitle = currentTile.subtitle
         selectedEntityId = currentTile.entityId
         selectIcon(
-            currentTile.iconId?.let {
-                if (::iconPack.isInitialized) iconPack.getIcon(it)
-                else null
+            currentTile.iconName?.let { iconName ->
+                iconDialogCompat.getIconId(iconName)?.let { iconId ->
+                    iconPack.getIcon(iconId)
+                }
             }
         )
     }
@@ -153,7 +146,7 @@ class ManageTilesViewModel @Inject constructor(
                 id = selectedTileId,
                 tileId = selectedTile.id,
                 added = selectedTileAdded,
-                iconId = selectedIcon,
+                iconName = selectedIcon,
                 entityId = selectedEntityId,
                 label = tileLabel,
                 subtitle = tileSubtitle

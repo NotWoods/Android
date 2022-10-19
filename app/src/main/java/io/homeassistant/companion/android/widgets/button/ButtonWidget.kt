@@ -43,6 +43,8 @@ import io.homeassistant.companion.android.common.R as commonR
 @AndroidEntryPoint
 class ButtonWidget : AppWidgetProvider() {
     companion object {
+        const val DEFAULT_ICON = "flash" // Lightning bolt
+
         private const val TAG = "ButtonWidget"
         public const val CALL_SERVICE =
             "io.homeassistant.companion.android.widgets.button.ButtonWidget.CALL_SERVICE"
@@ -192,7 +194,7 @@ class ButtonWidget : AppWidgetProvider() {
             setWidgetBackground(this, widget)
 
             // Content
-            val iconId = widget?.iconId ?: 988171 // Lightning bolt
+            val iconName = widget?.iconName ?: DEFAULT_ICON
 
             val iconDrawable = iconPack?.icons?.get(iconId)?.drawable
             if (iconDrawable != null) {
@@ -355,11 +357,11 @@ class ButtonWidget : AppWidgetProvider() {
         val serviceData: String? = extras.getString(EXTRA_SERVICE_DATA)
         val label: String? = extras.getString(EXTRA_LABEL)
         val requireAuthentication: Boolean = extras.getBoolean(EXTRA_REQUIRE_AUTHENTICATION)
-        val icon: Int = extras.getInt(EXTRA_ICON)
+        val icon: String? = extras.getString(EXTRA_ICON)
         val backgroundType: WidgetBackgroundType = extras.getSerializable(EXTRA_BACKGROUND_TYPE) as WidgetBackgroundType
         val textColor: String? = extras.getString(EXTRA_TEXT_COLOR)
 
-        if (domain == null || service == null || serviceData == null) {
+        if (domain == null || service == null || serviceData == null || icon == null) {
             Log.e(TAG, "Did not receive complete service call data")
             return
         }
